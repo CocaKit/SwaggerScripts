@@ -1,3 +1,3 @@
-module json2swagger
+module swaggerScripts
 
 go 1.2
