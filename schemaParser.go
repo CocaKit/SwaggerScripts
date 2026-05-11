@@ -10,7 +10,7 @@ import (
 type SchemaProperty struct {
 	Description string 						`yaml:"description,omitempty"`
 	Example 	interface{} 				`yaml:"example,omitempty"`
-	Type 		string						`yaml:"example,omitempty"`
+	Type 		string						`yaml:"type,omitempty"`
 	Properties map[string]SchemaProperty 	`yaml:"properties,omitempty"`
 }
 
@@ -21,8 +21,8 @@ type OpenAPISchema struct {
 
 type OpenAPI struct {
 	Components struct {
-		Schemas map[string]OpenAPISchema `yaml:"schemas,omitempty"`
-	} `yaml:"components,omitempty"`
+		Schemas map[string]OpenAPISchema 	`yaml:"schemas,omitempty"`
+	} 										`yaml:"components,omitempty"`
 }
 
 type Entity struct {
@@ -30,33 +30,29 @@ type Entity struct {
 	Descriptions []string
 }
 
-func extractProps(props map[string]SchemaProperty, entities *[]Entity) {
+func extractProps(props map[string]SchemaProperty, entities map[string]*Entity) {
 	for propName, prop := range props {
-		ent, exists := *entities[propName]
-		if !exists {
-			ent = &Entity{}
-			*entities[propName] = ent
+		if prop.Type == "object" {
+			if prop.Properties != nil {
+				extractProps(prop.Properties, entities)
+			}
+
+			continue
 		}
 
-		fmt.Printf("Property: %s\n", propName)
+		ent, exists := entities[propName]
+		if !exists {
+			ent = &Entity{}
+			entities[propName] = ent
+		}
 
 		switch prop.Example.(type) {
 		case string, int, float64, bool:
 			ent.Examples = append(ent.Examples, prop.Example)
-			fmt.Printf("Appending example: %v\n", prop.Example)
-		default:
-			fmt.Printf("Ignoring example of type: %T\n", prop.Example)
 		}
 
 		if prop.Description != "" {
 			ent.Descriptions = append(ent.Descriptions, prop.Description)
-			fmt.Printf("Appending description: %s\n", prop.Description)
-		} else {
-			fmt.Printf("Ignoring empty string\n")
-		}
-
-		if prop.Type == "object" && prop.Properties != nil {
-			extractProps(prop.Properties, entities)
 		}
 	}
 }
@@ -80,19 +76,17 @@ func schemaParser() {
 
 	var entities = make(map[string]*Entity)
 
-	for schemaName, schema := range api.Components.Schemas {
-		fmt.Printf("=== Schema %s ===\n", schemaName)	
-
+	for _, schema := range api.Components.Schemas {
 		if schema.Type != "object" || schema.Properties == nil {
-			fmt.Printf("Is't object or don't have properties\n")	
 			continue
 		}
 
-		extractProps(*schema.Properties, entities)
+		extractProps(schema.Properties, entities)
 	}
 
 	fmt.Println()
 
+	//TODO json output
 	fmt.Printf("=== All entities ===\n")
 	for entityName, entity := range entities {
 		fmt.Printf("=== %s ===\n", entityName)
