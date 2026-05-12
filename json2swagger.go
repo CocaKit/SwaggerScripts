@@ -25,7 +25,7 @@ func json2swagger() {
 		os.Exit(1)
 	}
 
-	exampleOutput, schemaOutput := formatNodes(jsonData, 2, true)
+	exampleOutput, schemaOutput := formatNodes(jsonData, 1, true)
 
 	fmt.Printf("ExampleName:\n")
 	fmt.Println("  value:")
@@ -77,6 +77,7 @@ func formatNodes(v interface{}, indent int, isRoot bool) (string, string) {
 			schemaNodes.WriteString(k)
 			schemaNodes.WriteString(":\n")
 
+			// TODO fix example generation
 			exampleNode, schemaNode := formatNodes(val[k], indent+2, false)
 
 			exampleNodes.WriteString(exampleNode)
