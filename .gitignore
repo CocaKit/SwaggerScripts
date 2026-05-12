@@ -1,3 +1,2 @@
-input.json
-output.yaml
-swaggerForParse.yaml
+*.json
+*.yaml

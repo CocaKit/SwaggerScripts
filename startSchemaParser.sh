@@ -1,1 +1,1 @@
-docker run --rm -i swagger-script --script schemaParser < swaggerForParse.yaml
+docker run --rm -i swagger-script --script schemaParser < swaggerForParse.yaml > swaggerParsed.json

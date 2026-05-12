@@ -4,30 +4,41 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
+	"encoding/json"
 	"gopkg.in/yaml.v3"
 )
 
 type SchemaProperty struct {
-	Description string 						`yaml:"description,omitempty"`
-	Example 	interface{} 				`yaml:"example,omitempty"`
-	Type 		string						`yaml:"type,omitempty"`
-	Properties map[string]SchemaProperty 	`yaml:"properties,omitempty"`
+	Description 	string 						`yaml:"description,omitempty"`
+	Example 		interface{} 				`yaml:"example,omitempty"`
+	Type 			string						`yaml:"type,omitempty"`
+	Properties 		map[string]SchemaProperty 	`yaml:"properties,omitempty"`
+	Items			*SchemaProperty				`yaml:"items,omitempty"`
 }
 
 type OpenAPISchema struct {
-	Type string 							`yaml:"type,omitempty"`
-	Properties map[string]SchemaProperty 	`yaml:"properties,omitempty"`
+	Type 			string 						`yaml:"type,omitempty"`
+	Properties 		map[string]SchemaProperty 	`yaml:"properties,omitempty"`
 }
 
 type OpenAPI struct {
 	Components struct {
-		Schemas map[string]OpenAPISchema 	`yaml:"schemas,omitempty"`
-	} 										`yaml:"components,omitempty"`
+		Schemas 	map[string]OpenAPISchema 	`yaml:"schemas,omitempty"`
+	} 											`yaml:"components,omitempty"`
 }
 
 type Entity struct {
-	Examples []interface{}
-	Descriptions []string
+	Examples 		[]interface{}				`json:"examples"`
+	Descriptions 	[]string					`json:"descriptions"`
+}
+
+func appendIfNotExists[T comparable](slice []T, elem T) []T {
+    if slices.Contains(slice, elem) {
+        return slice
+    }
+
+    return append(slice, elem)
 }
 
 func extractProps(props map[string]SchemaProperty, entities map[string]*Entity) {
@@ -35,6 +46,14 @@ func extractProps(props map[string]SchemaProperty, entities map[string]*Entity) 
 		if prop.Type == "object" {
 			if prop.Properties != nil {
 				extractProps(prop.Properties, entities)
+			}
+
+			continue
+		}
+
+		if prop.Type == "array" {
+			if prop.Items != nil {
+				extractProps(map[string]SchemaProperty{propName: *prop.Items}, entities)
 			}
 
 			continue
@@ -48,11 +67,11 @@ func extractProps(props map[string]SchemaProperty, entities map[string]*Entity) 
 
 		switch prop.Example.(type) {
 		case string, int, float64, bool:
-			ent.Examples = append(ent.Examples, prop.Example)
+			ent.Examples = appendIfNotExists(ent.Examples, prop.Example)
 		}
 
 		if prop.Description != "" {
-			ent.Descriptions = append(ent.Descriptions, prop.Description)
+			ent.Descriptions = appendIfNotExists(ent.Descriptions, prop.Description)
 		}
 	}
 }
@@ -77,29 +96,18 @@ func schemaParser() {
 	var entities = make(map[string]*Entity)
 
 	for _, schema := range api.Components.Schemas {
-		if schema.Type != "object" || schema.Properties == nil {
+		if schema.Properties == nil {
 			continue
 		}
 
 		extractProps(schema.Properties, entities)
 	}
 
-	fmt.Println()
 
-	//TODO json output
-	fmt.Printf("=== All entities ===\n")
-	for entityName, entity := range entities {
-		fmt.Printf("=== %s ===\n", entityName)
-
-		
-		fmt.Printf("Examples:\n")
-		for _, example := range entity.Examples {
-			fmt.Printf("%v\n", example)	
-		}
-
-		fmt.Printf("Descriptions:\n")
-		for _, description := range entity.Descriptions {
-			fmt.Printf("%s\n", description)	
-		}
+	data, err := json.MarshalIndent(entities, "", " ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing YAML: %v\n", err)
+		os.Exit(1)
 	}
+	fmt.Println(string(data))
 }
