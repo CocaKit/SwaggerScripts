@@ -66,7 +66,7 @@ func formatExampleNodes(v interface{}, indent int, isRoot bool) string {
 
 			exampleNodes.WriteString(formatExampleNodes(val[k], indent + 1, false))
 
-			if i < len(keys) - 1 {
+			if i < len(keys) - 1 && !isRoot {
 				exampleNodes.WriteString(",")
 			}
 			exampleNodes.WriteString("\n")
