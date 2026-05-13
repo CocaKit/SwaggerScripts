@@ -25,29 +25,27 @@ func json2swagger() {
 		os.Exit(1)
 	}
 
-	exampleOutput, schemaOutput := formatNodes(jsonData, 1, true)
-
 	fmt.Printf("ExampleName:\n")
 	fmt.Println("  value:")
-	fmt.Print(exampleOutput)
+	fmt.Print(formatExampleNodes(jsonData, 1, true))
 
 	fmt.Println()
 
 	fmt.Printf("SchemaName:\n")
-	fmt.Print(schemaOutput)
+	fmt.Print(formatSchemaNodes(jsonData, 1))
 }
 
-func formatNodes(v interface{}, indent int, isRoot bool) (string, string) {
+func formatExampleNodes(v interface{}, indent int, isRoot bool) string {
 	baseIndent := strings.Repeat("  ", indent)
-	innerIndent := strings.Repeat("  ", indent+1)
+	innerIndent := strings.Repeat("  ", indent + 1)
 
 	switch val := v.(type) {
 	case map[string]interface{}:
 		if len(val) == 0 {
 			if isRoot {
-				return "", ""
+				return ""
 			}
-			return "{}", ""
+			return "{}"
 		}
 
 		keys := make([]string, 0, len(val))
@@ -61,29 +59,14 @@ func formatNodes(v interface{}, indent int, isRoot bool) (string, string) {
 			exampleNodes.WriteString("{\n")
 		}
 
-		var schemaNodes strings.Builder
-		
-		schemaNodes.WriteString(baseIndent)
-		schemaNodes.WriteString("type: object\n")
-		schemaNodes.WriteString(baseIndent)
-		schemaNodes.WriteString("properties:\n")
-
 		for i, k := range keys {
 			exampleNodes.WriteString(innerIndent)
 			exampleNodes.WriteString(k)
 			exampleNodes.WriteString(": ")
 
-			schemaNodes.WriteString(innerIndent)
-			schemaNodes.WriteString(k)
-			schemaNodes.WriteString(":\n")
+			exampleNodes.WriteString(formatExampleNodes(val[k], indent + 1, false))
 
-			// TODO fix example generation
-			exampleNode, schemaNode := formatNodes(val[k], indent+2, false)
-
-			exampleNodes.WriteString(exampleNode)
-			schemaNodes.WriteString(schemaNode)
-
-			if i < len(keys)-1 {
+			if i < len(keys) - 1 {
 				exampleNodes.WriteString(",")
 			}
 			exampleNodes.WriteString("\n")
@@ -94,10 +77,72 @@ func formatNodes(v interface{}, indent int, isRoot bool) (string, string) {
 			exampleNodes.WriteString("}")
 		}
 
-		return exampleNodes.String(), schemaNodes.String()
+		return exampleNodes.String()
 	case string:
-		exampleStr := fmt.Sprintf("%q", val)
+		return fmt.Sprintf("%q", val)
+	case float64:
+		if val == float64(int64(val)) {
+			return fmt.Sprintf("%d", int64(val))
+		}
 
+		return fmt.Sprintf("%g", val)
+	case bool:
+		return fmt.Sprintf("%t", val)
+	case nil:
+		return "null"
+	case []interface{}:
+		if len(val) == 0 {
+			return "[]"
+		}
+
+		var exampleNodes strings.Builder
+
+		exampleNodes.WriteString("[\n")
+		exampleNodes.WriteString(innerIndent)
+		exampleNodes.WriteString(formatExampleNodes(val[0], indent + 1, false))
+		exampleNodes.WriteString("\n")
+		exampleNodes.WriteString(baseIndent)
+		exampleNodes.WriteString("]")
+
+		return exampleNodes.String()
+	default:
+		return fmt.Sprintf("%v", val)
+	}
+}
+
+func formatSchemaNodes(v interface{}, indent int) string {
+	baseIndent := strings.Repeat("  ", indent)
+	innerIndent := strings.Repeat("  ", indent + 1)
+
+	switch val := v.(type) {
+	case map[string]interface{}:
+		var schemaNodes strings.Builder
+		
+		schemaNodes.WriteString(baseIndent)
+		schemaNodes.WriteString("type: object\n")
+
+		if len(val) == 0 {
+			return schemaNodes.String()
+		}
+
+		keys := make([]string, 0, len(val))
+		for k := range val {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		schemaNodes.WriteString(baseIndent)
+		schemaNodes.WriteString("properties:\n")
+
+		for _, k := range keys {
+			schemaNodes.WriteString(innerIndent)
+			schemaNodes.WriteString(k)
+			schemaNodes.WriteString(":\n")
+			schemaNodes.WriteString(formatSchemaNodes(val[k], indent + 2))
+		}
+
+		return schemaNodes.String()
+	case string:
 		var schemaNodes strings.Builder
 
 		schemaNodes.WriteString(baseIndent)
@@ -107,11 +152,9 @@ func formatNodes(v interface{}, indent int, isRoot bool) (string, string) {
 		schemaNodes.WriteString("description:\n")
 
 		schemaNodes.WriteString(baseIndent)
-		schemaNodes.WriteString("example: ")
-		schemaNodes.WriteString(exampleStr)
-		schemaNodes.WriteString("\n")
+		schemaNodes.WriteString(fmt.Sprintf("example: %q\n", val))
 
-		return exampleStr, schemaNodes.String()
+		return schemaNodes.String()
 	case float64:
 		var exampleStr string
 		var schemaNodes strings.Builder
@@ -130,14 +173,10 @@ func formatNodes(v interface{}, indent int, isRoot bool) (string, string) {
 		schemaNodes.WriteString("description:\n")
 
 		schemaNodes.WriteString(baseIndent)
-		schemaNodes.WriteString("example: ")
-		schemaNodes.WriteString(exampleStr)
-		schemaNodes.WriteString("\n")
+		schemaNodes.WriteString(fmt.Sprintf("example: %s\n", exampleStr))
 
-		return exampleStr, schemaNodes.String()
+		return schemaNodes.String()
 	case bool:
-		exampleStr := fmt.Sprintf("%t", val)
-
 		var schemaNodes strings.Builder
 
 		schemaNodes.WriteString(baseIndent)
@@ -147,14 +186,10 @@ func formatNodes(v interface{}, indent int, isRoot bool) (string, string) {
 		schemaNodes.WriteString("description:\n")
 
 		schemaNodes.WriteString(baseIndent)
-		schemaNodes.WriteString("example: ")
-		schemaNodes.WriteString(exampleStr)
-		schemaNodes.WriteString("\n")
+		schemaNodes.WriteString(fmt.Sprintf("example: %t\n", val))
 
-		return exampleStr, schemaNodes.String()
+		return schemaNodes.String()
 	case nil:
-		exampleStr := "null"
-
 		var schemaNodes strings.Builder
 
 		schemaNodes.WriteString(baseIndent)
@@ -164,11 +199,9 @@ func formatNodes(v interface{}, indent int, isRoot bool) (string, string) {
 		schemaNodes.WriteString("description:\n")
 
 		schemaNodes.WriteString(baseIndent)
-		schemaNodes.WriteString("example: ")
-		schemaNodes.WriteString(exampleStr)
-		schemaNodes.WriteString("\n")
+		schemaNodes.WriteString("example: null\n")
 
-		return exampleStr, schemaNodes.String()
+		return schemaNodes.String()
 	case []interface{}:
 		var schemaNodes strings.Builder
 
@@ -178,26 +211,13 @@ func formatNodes(v interface{}, indent int, isRoot bool) (string, string) {
 		schemaNodes.WriteString("items:\n")
 
 		if len(val) == 0 {
-			return "[]", schemaNodes.String() 
+			return schemaNodes.String() 
 		}
 
-		exampleNode, schemaNode := formatNodes(val[0], indent+1, false)
+		schemaNodes.WriteString(formatSchemaNodes(val[0], indent+1))
 
-		schemaNodes.WriteString(schemaNode)
-
-		var exampleNodes strings.Builder
-
-		exampleNodes.WriteString("[\n")
-		exampleNodes.WriteString(innerIndent)
-		exampleNodes.WriteString(exampleNode)
-		exampleNodes.WriteString("\n")
-		exampleNodes.WriteString(baseIndent)
-		exampleNodes.WriteString("]")
-
-		return exampleNodes.String(), schemaNodes.String()
+		return schemaNodes.String()
 	default:
-		exampleStr := fmt.Sprintf("%v", val)
-
 		var schemaNodes strings.Builder
 
 		schemaNodes.WriteString(baseIndent)
@@ -207,10 +227,8 @@ func formatNodes(v interface{}, indent int, isRoot bool) (string, string) {
 		schemaNodes.WriteString("description:\n")
 
 		schemaNodes.WriteString(baseIndent)
-		schemaNodes.WriteString("example: ")
-		schemaNodes.WriteString(exampleStr)
-		schemaNodes.WriteString("\n")
+		schemaNodes.WriteString(fmt.Sprintf("example: %v\n", val))
 
-		return exampleStr, schemaNodes.String()
+		return schemaNodes.String()
 	}
 }
