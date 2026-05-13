@@ -25,14 +25,28 @@ func json2swagger() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("ExampleName:\n")
-	fmt.Println("  value:")
-	fmt.Print(formatExampleNodes(jsonData, 1, true))
+	var exampleText strings.Builder
 
-	fmt.Println()
+	exampleText.WriteString("ExampleName:\n")
+	exampleText.WriteString("  value:")
+	exampleText.WriteString(formatExampleNodes(jsonData, 1, true))
 
-	fmt.Printf("SchemaName:\n")
-	fmt.Print(formatSchemaNodes(jsonData, 1))
+	err = os.WriteFile("output/exampleSwag.yaml", []byte(exampleText.String()), 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing example file: %v\n", err)
+		os.Exit(1)
+	}
+
+	var schemaText strings.Builder
+
+	schemaText.WriteString("SchemaName:\n")
+	schemaText.WriteString(formatSchemaNodes(jsonData, 1))
+
+	err = os.WriteFile("output/schemaSwag.yaml", []byte(schemaText.String()), 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing schema file: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func formatExampleNodes(v interface{}, indent int, isRoot bool) string {

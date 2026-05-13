@@ -10,7 +10,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /swaggerscripts .
 
 # Runtime stage
 FROM alpine:3.19
+WORKDIR /app
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /swaggerscripts /usr/local/bin/swaggerscripts
+RUN mkdir output
 ENTRYPOINT ["swaggerscripts"]
 CMD ["-help"]
