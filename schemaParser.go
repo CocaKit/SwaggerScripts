@@ -105,13 +105,13 @@ func schemaParser() {
 
 	data, err := json.MarshalIndent(entities, "", " ")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing YAML: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error parsing JSON: %v\n", err)
 		os.Exit(1)
 	}
 
-	err = os.WriteFile("output/parsedProps.yaml", []byte(string(data)), 0644)
+	err = os.WriteFile("output/parsedProps.json", []byte(string(data)), 0644)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing parsed proportions file: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error writing parsed propertions file: %v\n", err)
 		os.Exit(1)
 	}
 }

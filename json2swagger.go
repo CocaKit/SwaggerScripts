@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -36,16 +37,65 @@ func json2swagger() {
 		os.Exit(1)
 	}
 
+	inputData, err = os.ReadFile("output/parsedProps.json")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading parsed propertions file: %v\n", err)
+		os.Exit(1)
+	}
+
+	var entities map[string]Entity
+	err = json.Unmarshal(inputData, &entities)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing JSON for propertions: %v\n", err)
+		os.Exit(1)
+	}
+
 	var schemaText strings.Builder
 
 	schemaText.WriteString("SchemaName:\n")
-	schemaText.WriteString(formatSchemaNodes(jsonData, 1))
+	schemaText.WriteString(formatSchemaNodes(jsonData, 1, entities, []string{}))
 
 	err = os.WriteFile("output/schemaSwag.yaml", []byte(schemaText.String()), 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing schema file: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// TODO catch wrong number choice and fix zero variant
+func inputPropValueForDescription(mainStr string, keyName string, props map[string]Entity) string {
+	prop, exist := props[keyName]	
+	if !exist {
+		return ""
+	}
+
+	fmt.Println(mainStr)
+
+	for propIndex, propVar := range prop.Descriptions {
+		fmt.Printf("%d: %s\n", propIndex + 1, propVar)	
+	}
+
+	fmt.Printf("0: == Input own ==\n")	
+
+	reader := bufio.NewReader(os.Stdin)
+	choice, _, err := reader.ReadRune()
+
+	if err != nil {
+		return ""
+	}
+
+	if string(choice) == "0" {
+		fmt.Printf("New value: ")	
+
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return ""
+		}
+
+		return input
+	}
+
+	return prop.Descriptions[choice - '1']
 }
 
 func formatExampleNodes(v interface{}, indent int, isRoot bool) string {
@@ -123,9 +173,11 @@ func formatExampleNodes(v interface{}, indent int, isRoot bool) string {
 	}
 }
 
-func formatSchemaNodes(v interface{}, indent int) string {
+func formatSchemaNodes(v interface{}, indent int, props map[string]Entity, keyNames []string) string {
 	baseIndent := strings.Repeat("  ", indent)
 	innerIndent := strings.Repeat("  ", indent + 1)
+
+	keyNamesStr := strings.Join(keyNames, " -> ")
 
 	switch val := v.(type) {
 	case map[string]interface{}:
@@ -151,7 +203,7 @@ func formatSchemaNodes(v interface{}, indent int) string {
 			schemaNodes.WriteString(innerIndent)
 			schemaNodes.WriteString(k)
 			schemaNodes.WriteString(":\n")
-			schemaNodes.WriteString(formatSchemaNodes(val[k], indent + 2))
+			schemaNodes.WriteString(formatSchemaNodes(val[k], indent + 2, props, append(keyNames, k)))
 		}
 
 		return schemaNodes.String()
@@ -161,8 +213,14 @@ func formatSchemaNodes(v interface{}, indent int) string {
 		schemaNodes.WriteString(baseIndent)
 		schemaNodes.WriteString("type: string\n")
 
+		descriptionStr := ""
+		if len(keyNames) > 0 {
+			descriptionStr = inputPropValueForDescription("string: " + keyNamesStr, keyNames[len(keyNames) - 1], props)
+		}
+
 		schemaNodes.WriteString(baseIndent)
-		schemaNodes.WriteString("description:\n")
+		schemaNodes.WriteString(fmt.Sprintf("description: %s\n", descriptionStr))
+		fmt.Printf("description: %s\n", descriptionStr)
 
 		schemaNodes.WriteString(baseIndent)
 		schemaNodes.WriteString(fmt.Sprintf("example: %q\n", val))
@@ -227,7 +285,7 @@ func formatSchemaNodes(v interface{}, indent int) string {
 			return schemaNodes.String() 
 		}
 
-		schemaNodes.WriteString(formatSchemaNodes(val[0], indent+1))
+		schemaNodes.WriteString(formatSchemaNodes(val[0], indent+1, props, keyNames))
 
 		return schemaNodes.String()
 	default:
