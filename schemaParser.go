@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"slices"
 	"encoding/json"
@@ -80,9 +79,9 @@ func schemaParser() {
 	var inputData []byte
 	var err error
 
-	inputData, err = io.ReadAll(os.Stdin)
+	inputData, err = os.ReadFile("input/schemasToParse.yaml")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading stdin: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error reading input file: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -109,5 +108,10 @@ func schemaParser() {
 		fmt.Fprintf(os.Stderr, "Error parsing YAML: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println(string(data))
+
+	err = os.WriteFile("output/parsedProps.yaml", []byte(string(data)), 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing parsed proportions file: %v\n", err)
+		os.Exit(1)
+	}
 }
