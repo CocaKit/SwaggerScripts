@@ -13,6 +13,6 @@ FROM alpine:3.19
 WORKDIR /app
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /swaggerscripts /usr/local/bin/swaggerscripts
-RUN mkdir output
+RUN mkdir output && mkdir input
 ENTRYPOINT ["swaggerscripts"]
 CMD ["-help"]

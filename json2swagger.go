@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"sort"
@@ -13,9 +12,9 @@ func json2swagger() {
 	var inputData []byte
 	var err error
 
-	inputData, err = io.ReadAll(os.Stdin)
+	inputData, err = os.ReadFile("input/input.json")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading stdin: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error reading input file: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -28,7 +27,7 @@ func json2swagger() {
 	var exampleText strings.Builder
 
 	exampleText.WriteString("ExampleName:\n")
-	exampleText.WriteString("  value:")
+	exampleText.WriteString("  value:\n")
 	exampleText.WriteString(formatExampleNodes(jsonData, 1, true))
 
 	err = os.WriteFile("output/exampleSwag.yaml", []byte(exampleText.String()), 0644)
