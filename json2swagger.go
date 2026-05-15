@@ -268,9 +268,6 @@ func formatSchemaNodes(v interface{}, indent int, props map[string]Entity, keyNa
 		schemaNodes.WriteString(baseIndent)
 		schemaNodes.WriteString("type: bool\n")
 
-		schemaNodes.WriteString(baseIndent)
-		schemaNodes.WriteString("description:\n")
-
 		descriptionStr := ""
 		if len(keyNames) > 0 {
 			descriptionStr = inputPropValueForDescription("bool: " + keyNamesStr, keyNames[len(keyNames) - 1], props)
