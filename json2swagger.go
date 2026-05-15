@@ -63,13 +63,27 @@ func json2swagger() {
 }
 
 func inputPropValueForDescription(mainStr string, keyName string, props map[string]Entity) string {
-	fmt.Println(strings.Repeat("#", len(mainStr)))
+	fmt.Println("### SET DESCRIPTION FOR:")
 	fmt.Println(mainStr)
 
-	prop, propIsExist := props[keyName]	
+	prop, exist := props[keyName]	
+
+	return fmt.Sprintf("%s", inputWithList(prop.Descriptions, exist))
+}
+
+func inputPropValueForExample(mainStr string, keyName string, props map[string]Entity) any {
+	fmt.Println("### SET EXAMPLE FOR:")
+	fmt.Println(mainStr)
+
+	prop, exist := props[keyName]	
+
+	return inputWithList(prop.Examples, exist)
+}
+
+func inputWithList[T any](propList []T, propIsExist bool) any {
 	if propIsExist {
-		for propIndex, propVar := range prop.Descriptions {
-			fmt.Printf("%d: %s\n", propIndex + 1, propVar)	
+		for propIndex, propVar := range propList {
+			fmt.Printf("%d: %v\n", propIndex + 1, propVar)	
 		}
 	}
 
@@ -96,12 +110,12 @@ func inputPropValueForDescription(mainStr string, keyName string, props map[stri
 		}
 
 		idx := choice - '1'
-		if !propIsExist || idx < 0 || int(idx) >= len(prop.Descriptions) {
+		if !propIsExist || idx < 0 || int(idx) >= len(propList) {
 			fmt.Println("Input valid number:")
 			continue
 		}
 
-		return prop.Descriptions[idx]
+		return propList[idx]
 	}
 }
 
@@ -180,6 +194,8 @@ func formatExampleNodes(v interface{}, indent int, isRoot bool) string {
 	}
 }
 
+//TODO automatic select arrays and objects from json if empty
+//TODO automatic fill null values (need type parsing)
 func formatSchemaNodes(v interface{}, indent int, props map[string]Entity, keyNames []string) string {
 	baseIndent := strings.Repeat("  ", indent)
 	innerIndent := strings.Repeat("  ", indent + 1)
@@ -230,7 +246,11 @@ func formatSchemaNodes(v interface{}, indent int, props map[string]Entity, keyNa
 		schemaNodes.WriteString(fmt.Sprintf("description: %s\n", descriptionStr))
 
 		schemaNodes.WriteString(baseIndent)
-		schemaNodes.WriteString(fmt.Sprintf("example: %q\n", val))
+		if (val == "") {
+			schemaNodes.WriteString(fmt.Sprintf("example: %q\n", inputPropValueForExample("string: " + keyNamesStr, keyNames[len(keyNames) - 1], props)))
+		} else {
+			schemaNodes.WriteString(fmt.Sprintf("example: %q\n", val))
+		}
 
 		return schemaNodes.String()
 	case float64:
@@ -306,7 +326,7 @@ func formatSchemaNodes(v interface{}, indent int, props map[string]Entity, keyNa
 		schemaNodes.WriteString("description:\n")
 
 		schemaNodes.WriteString(baseIndent)
-		schemaNodes.WriteString(fmt.Sprintf("example: %v\n", val))
+		schemaNodes.WriteString(fmt.Sprintf("example: %v\n"))
 
 		fmt.Println("!!! WRONG TYPE !!! " + keyNamesStr)
 
