@@ -63,6 +63,7 @@ func json2swagger() {
 }
 
 func inputPropValueForDescription(mainStr string, keyName string, props map[string]Entity) string {
+	fmt.Println(strings.Repeat("#", len(mainStr)))
 	fmt.Println(mainStr)
 
 	prop, propIsExist := props[keyName]	
@@ -193,6 +194,7 @@ func formatSchemaNodes(v interface{}, indent int, props map[string]Entity, keyNa
 		schemaNodes.WriteString("type: object\n")
 
 		if len(val) == 0 {
+			fmt.Println("!!! EMPTY OBJECT !!! " + keyNamesStr)
 			return schemaNodes.String()
 		}
 
@@ -281,19 +283,6 @@ func formatSchemaNodes(v interface{}, indent int, props map[string]Entity, keyNa
 		schemaNodes.WriteString(fmt.Sprintf("example: %t\n", val))
 
 		return schemaNodes.String()
-	case nil:
-		var schemaNodes strings.Builder
-
-		schemaNodes.WriteString(baseIndent)
-		schemaNodes.WriteString("type:\n")
-
-		schemaNodes.WriteString(baseIndent)
-		schemaNodes.WriteString("description:\n")
-
-		schemaNodes.WriteString(baseIndent)
-		schemaNodes.WriteString("example: null\n")
-
-		return schemaNodes.String()
 	case []interface{}:
 		var schemaNodes strings.Builder
 
@@ -303,6 +292,7 @@ func formatSchemaNodes(v interface{}, indent int, props map[string]Entity, keyNa
 		schemaNodes.WriteString("items:\n")
 
 		if len(val) == 0 {
+			fmt.Println("!!! EMPTY ARRAY !!! " + keyNamesStr)
 			return schemaNodes.String() 
 		}
 
@@ -320,6 +310,8 @@ func formatSchemaNodes(v interface{}, indent int, props map[string]Entity, keyNa
 
 		schemaNodes.WriteString(baseIndent)
 		schemaNodes.WriteString(fmt.Sprintf("example: %v\n", val))
+
+		fmt.Println("!!! WRONG TYPE !!! " + keyNamesStr)
 
 		return schemaNodes.String()
 	}
