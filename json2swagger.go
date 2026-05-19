@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"sort"
+	"strconv"
+	"strings"
 )
 
 func json2swagger() {
@@ -91,13 +92,15 @@ func inputWithList[T any](propList []T, propIsExist bool) any {
 
 	for {
 		reader := bufio.NewReader(os.Stdin)
-		choice, _, err := reader.ReadRune()
+		choice, err := reader.ReadString('\n')
 
 		if err != nil {
 			return ""
 		}
 
-		if string(choice) == "0" {
+		choice = strings.Trim(choice, " \n")
+
+		if choice == "0" {
 			fmt.Printf("New value: ")	
 
 			reader = bufio.NewReader(os.Stdin)
@@ -109,8 +112,13 @@ func inputWithList[T any](propList []T, propIsExist bool) any {
 			return strings.Trim(input, " \n")
 		}
 
-		idx := choice - '1'
-		if !propIsExist || idx < 0 || int(idx) >= len(propList) {
+		idx, err := strconv.Atoi(choice)
+		if err != nil {
+			return ""
+		}
+
+		idx = idx - 1
+		if !propIsExist || idx < 0 || idx >= len(propList) {
 			fmt.Println("Input valid number:")
 			continue
 		}
