@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func json2swagger() {
+func json2swagger(sortExample bool, sortSchema bool) {
 	var inputData []byte
 	var err error
 
@@ -30,7 +30,7 @@ func json2swagger() {
 
 	exampleText.WriteString("ExampleName:\n")
 	exampleText.WriteString("  value:\n")
-	exampleText.WriteString(formatExampleNodes(jsonData, 1, true))
+	exampleText.WriteString(formatExampleNodes(jsonData, 1, true, sortExample))
 
 	err = os.WriteFile("output/exampleSwag.yaml", []byte(exampleText.String()), 0644)
 	if err != nil {
@@ -54,7 +54,7 @@ func json2swagger() {
 	var schemaText strings.Builder
 
 	schemaText.WriteString("SchemaName:\n")
-	schemaText.WriteString(formatSchemaNodes(jsonData, 1, entities, []string{}))
+	schemaText.WriteString(formatSchemaNodes(jsonData, 1, entities, []string{}, sortSchema))
 
 	err = os.WriteFile("output/schemaSwag.yaml", []byte(schemaText.String()), 0644)
 	if err != nil {
@@ -127,7 +127,7 @@ func inputWithList[T any](propList []T, propIsExist bool) any {
 	}
 }
 
-func formatExampleNodes(v interface{}, indent int, isRoot bool) string {
+func formatExampleNodes(v interface{}, indent int, isRoot bool, sortKeys bool) string {
 	baseIndent := strings.Repeat("  ", indent)
 	innerIndent := strings.Repeat("  ", indent + 1)
 
@@ -144,7 +144,10 @@ func formatExampleNodes(v interface{}, indent int, isRoot bool) string {
 		for k := range val {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+
+		if sortKeys {
+			sort.Strings(keys)
+		}
 
 		var exampleNodes strings.Builder
 		if !isRoot {
@@ -156,7 +159,7 @@ func formatExampleNodes(v interface{}, indent int, isRoot bool) string {
 			exampleNodes.WriteString(k)
 			exampleNodes.WriteString(": ")
 
-			exampleNodes.WriteString(formatExampleNodes(val[k], indent + 1, false))
+			exampleNodes.WriteString(formatExampleNodes(val[k], indent + 1, false, sortKeys))
 
 			if i < len(keys) - 1 && !isRoot {
 				exampleNodes.WriteString(",")
@@ -191,7 +194,7 @@ func formatExampleNodes(v interface{}, indent int, isRoot bool) string {
 
 		exampleNodes.WriteString("[\n")
 		exampleNodes.WriteString(innerIndent)
-		exampleNodes.WriteString(formatExampleNodes(val[0], indent + 1, false))
+		exampleNodes.WriteString(formatExampleNodes(val[0], indent + 1, false, sortKeys))
 		exampleNodes.WriteString("\n")
 		exampleNodes.WriteString(baseIndent)
 		exampleNodes.WriteString("]")
@@ -204,7 +207,7 @@ func formatExampleNodes(v interface{}, indent int, isRoot bool) string {
 
 //TODO automatic select arrays and objects from json if empty
 //TODO automatic fill null values (need type parsing)
-func formatSchemaNodes(v interface{}, indent int, props map[string]Entity, keyNames []string) string {
+func formatSchemaNodes(v interface{}, indent int, props map[string]Entity, keyNames []string, sortKeys bool) string {
 	baseIndent := strings.Repeat("  ", indent)
 	innerIndent := strings.Repeat("  ", indent + 1)
 
@@ -226,7 +229,10 @@ func formatSchemaNodes(v interface{}, indent int, props map[string]Entity, keyNa
 		for k := range val {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+
+		if sortKeys {
+			sort.Strings(keys)
+		}
 
 		schemaNodes.WriteString(baseIndent)
 		schemaNodes.WriteString("properties:\n")
@@ -235,7 +241,7 @@ func formatSchemaNodes(v interface{}, indent int, props map[string]Entity, keyNa
 			schemaNodes.WriteString(innerIndent)
 			schemaNodes.WriteString(k)
 			schemaNodes.WriteString(":\n")
-			schemaNodes.WriteString(formatSchemaNodes(val[k], indent + 2, props, append(keyNames, k)))
+			schemaNodes.WriteString(formatSchemaNodes(val[k], indent + 2, props, append(keyNames, k), sortKeys))
 		}
 
 		return schemaNodes.String()
@@ -321,7 +327,7 @@ func formatSchemaNodes(v interface{}, indent int, props map[string]Entity, keyNa
 			return schemaNodes.String() 
 		}
 
-		schemaNodes.WriteString(formatSchemaNodes(val[0], indent+1, props, keyNames))
+		schemaNodes.WriteString(formatSchemaNodes(val[0], indent+1, props, keyNames, sortKeys))
 
 		return schemaNodes.String()
 	default:
