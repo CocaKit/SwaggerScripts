@@ -30,7 +30,7 @@ func json2swagger(sortExample bool, sortSchema bool) {
 
 	exampleText.WriteString("ExampleName:\n")
 	exampleText.WriteString("  value:\n")
-	exampleText.WriteString(formatExampleNodes(jsonData, 1, true, sortExample))
+	exampleText.WriteString(formatExampleString(string(inputData)))
 
 	err = os.WriteFile("output/exampleSwag.yaml", []byte(exampleText.String()), 0644)
 	if err != nil {
@@ -127,6 +127,51 @@ func inputWithList[T any](propList []T, propIsExist bool) any {
 	}
 }
 
+func formatExampleString(s string) string {
+	var exampleString strings.Builder
+
+	s = strings.TrimSpace(s)
+	lines := strings.Split(s, "\n")
+	linesLength := len(lines)
+
+	if linesLength < 3 || 
+		strings.TrimSpace(lines[0]) != "{" || 
+		strings.TrimSpace(lines[linesLength - 1]) != "}" {
+		return s
+	}
+
+	depth := 1
+
+	for _, l := range lines[1 : linesLength - 1] {
+		currentLine := strings.TrimSpace(l)
+
+		if strings.ContainsRune(currentLine, ':') { 
+			splittedLine := strings.Split(currentLine, ":")
+			splittedLine[0] = strings.ReplaceAll(splittedLine[0], "\"", "")
+			currentLine = strings.Join(splittedLine, ":")
+		}
+
+		if depth == 1 {
+			currentLine = strings.TrimSuffix(currentLine, ",")
+		}
+
+		if currentLine == "}" || currentLine == "}," || currentLine == "]" || currentLine == "],"{
+			depth -= 1
+		}
+
+		exampleString.WriteString(strings.Repeat("  ", depth + 1))
+		exampleString.WriteString(currentLine)
+		exampleString.WriteString("\n")
+
+		if strings.HasSuffix(currentLine, "{") || strings.HasSuffix(currentLine, "[") {
+			depth += 1
+		}
+	}
+
+	return exampleString.String()
+}
+
+//TODO Delete if not needed
 func formatExampleNodes(v interface{}, indent int, isRoot bool, sortKeys bool) string {
 	baseIndent := strings.Repeat("  ", indent)
 	innerIndent := strings.Repeat("  ", indent + 1)
