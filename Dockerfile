@@ -5,7 +5,7 @@ COPY go.mod ./
 COPY main.go ./
 COPY json2swagger.go ./
 COPY schemaParser.go ./
-RUN go get gopkg.in/yaml.v3
+RUN go get gopkg.in/yaml.v3 github.com/go-faster/jx
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /swaggerscripts .
 
 # Runtime stage
