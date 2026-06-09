@@ -11,6 +11,7 @@ import (
 	"github.com/go-faster/jx"
 )
 
+//TODO make web service
 func json2swagger() {
 	var inputData []byte
 	var err error
@@ -123,6 +124,7 @@ func inputWithList[T any](propList []T, propIsExist bool) any {
 }
 
 //TODO use jx lib
+//TODO only one element in array
 func formatExampleString(s string) string {
 	var exampleString strings.Builder
 
@@ -169,6 +171,7 @@ func formatExampleString(s string) string {
 
 //TODO automatic select arrays and objects from json if empty
 //TODO automatic fill null values (need type parsing)
+//TODO place on top more suitable variants (checking element key nesting)
 func formatSchemaNodes(d *jx.Decoder, indent int, props map[string]Entity, keyNames []string) string {
 	baseIndent := strings.Repeat("  ", indent)
 	innerIndent := strings.Repeat("  ", indent + 1)
