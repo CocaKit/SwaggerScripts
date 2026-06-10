@@ -149,12 +149,12 @@ func formatExampleString(s string) string {
 			currentLine = strings.Join(splittedLine, ":")
 		}
 
-		if depth == 1 {
-			currentLine = strings.TrimSuffix(currentLine, ",")
-		}
-
 		if currentLine == "}" || currentLine == "}," || currentLine == "]" || currentLine == "],"{
 			depth -= 1
+		}
+
+		if depth == 1 {
+			currentLine = strings.TrimSuffix(currentLine, ",")
 		}
 
 		exampleString.WriteString(strings.Repeat("  ", depth + 1))
