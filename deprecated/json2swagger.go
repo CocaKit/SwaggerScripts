@@ -216,3 +216,47 @@ func formatExampleNodes(v interface{}, indent int, isRoot bool, sortKeys bool) s
 		return fmt.Sprintf("%v", val)
 	}
 }
+
+func formatExampleString(s string) string {
+	var exampleString strings.Builder
+
+	s = strings.TrimSpace(s)
+	lines := strings.Split(s, "\n")
+	linesLength := len(lines)
+
+	if linesLength < 3 || 
+		strings.TrimSpace(lines[0]) != "{" || 
+		strings.TrimSpace(lines[linesLength - 1]) != "}" {
+		return s
+	}
+
+	depth := 1
+
+	for _, l := range lines[1 : linesLength - 1] {
+		currentLine := strings.TrimSpace(l)
+
+		if strings.ContainsRune(currentLine, ':') { 
+			splittedLine := strings.Split(currentLine, ":")
+			splittedLine[0] = strings.ReplaceAll(splittedLine[0], "\"", "")
+			currentLine = strings.Join(splittedLine, ":")
+		}
+
+		if currentLine == "}" || currentLine == "}," || currentLine == "]" || currentLine == "],"{
+			depth -= 1
+		}
+
+		if depth == 1 {
+			currentLine = strings.TrimSuffix(currentLine, ",")
+		}
+
+		exampleString.WriteString(strings.Repeat("  ", depth + 1))
+		exampleString.WriteString(currentLine)
+		exampleString.WriteString("\n")
+
+		if strings.HasSuffix(currentLine, "{") || strings.HasSuffix(currentLine, "[") {
+			depth += 1
+		}
+	}
+
+	return exampleString.String()
+}

@@ -26,7 +26,7 @@ func json2swagger() {
 
 	exampleText.WriteString("ExampleName:\n")
 	exampleText.WriteString("  value:\n")
-	exampleText.WriteString(formatExampleString(string(inputData)))
+	exampleText.WriteString(formatExampleNodes(jx.DecodeBytes(inputData), 1, true))
 
 	err = os.WriteFile("output/exampleSwag.yaml", []byte(exampleText.String()), 0644)
 	if err != nil {
@@ -121,52 +121,6 @@ func inputWithList[T any](propList []T, propIsExist bool) any {
 
 		return propList[idx]
 	}
-}
-
-//TODO use jx lib
-//TODO only one element in array
-func formatExampleString(s string) string {
-	var exampleString strings.Builder
-
-	s = strings.TrimSpace(s)
-	lines := strings.Split(s, "\n")
-	linesLength := len(lines)
-
-	if linesLength < 3 || 
-		strings.TrimSpace(lines[0]) != "{" || 
-		strings.TrimSpace(lines[linesLength - 1]) != "}" {
-		return s
-	}
-
-	depth := 1
-
-	for _, l := range lines[1 : linesLength - 1] {
-		currentLine := strings.TrimSpace(l)
-
-		if strings.ContainsRune(currentLine, ':') { 
-			splittedLine := strings.Split(currentLine, ":")
-			splittedLine[0] = strings.ReplaceAll(splittedLine[0], "\"", "")
-			currentLine = strings.Join(splittedLine, ":")
-		}
-
-		if currentLine == "}" || currentLine == "}," || currentLine == "]" || currentLine == "],"{
-			depth -= 1
-		}
-
-		if depth == 1 {
-			currentLine = strings.TrimSuffix(currentLine, ",")
-		}
-
-		exampleString.WriteString(strings.Repeat("  ", depth + 1))
-		exampleString.WriteString(currentLine)
-		exampleString.WriteString("\n")
-
-		if strings.HasSuffix(currentLine, "{") || strings.HasSuffix(currentLine, "[") {
-			depth += 1
-		}
-	}
-
-	return exampleString.String()
 }
 
 //TODO automatic select arrays and objects from json if empty
@@ -326,4 +280,107 @@ func formatSchemaNodes(d *jx.Decoder, indent int, props map[string]Entity, keyNa
 	}
 
 	return schemaNodes.String()
+}
+
+func formatExampleNodes(d *jx.Decoder, indent int, isRoot bool) string {
+	baseIndent := strings.Repeat("  ", indent)
+	innerIndent := strings.Repeat("  ", indent + 1)
+
+	nextType := d.Next()
+
+	var exampleNodes strings.Builder
+
+	switch nextType {
+	case jx.Object:
+		if !isRoot {
+			exampleNodes.WriteString("{")
+		}
+
+		var innerNodes strings.Builder
+
+		d.Obj(func(d *jx.Decoder, key string) error {
+			innerNodes.WriteString(fmt.Sprintf("%s%s: ", innerIndent, key))
+			innerNodes.WriteString(formatExampleNodes(d, indent + 1, false))
+
+			if !isRoot {
+				innerNodes.WriteString(",")
+			}
+			innerNodes.WriteString("\n")
+			
+			return nil
+		})
+
+		if innerNodes.Len() > 0 {
+			if !isRoot {
+				exampleNodes.WriteString("\n")
+			}
+
+			innerString := innerNodes.String()
+			innerStringLen := len(innerString)
+
+			if (innerStringLen > 2 && innerString[innerStringLen - 2] == ',' && innerString[innerStringLen - 1] == '\n') {
+				innerString = innerString[:innerStringLen - 2]
+			}
+
+			exampleNodes.WriteString(innerString)
+
+			if !isRoot {
+				exampleNodes.WriteString("\n")
+				exampleNodes.WriteString(baseIndent)
+			}
+		}
+
+		if !isRoot {
+			exampleNodes.WriteString("}")
+		}
+	case jx.Array:
+		isFirst := true
+
+		exampleNodes.WriteString("[")
+
+		var innerNodes strings.Builder
+
+		d.Arr(func(d *jx.Decoder) error {
+
+			if isFirst {
+				isFirst = false
+				innerNodes.WriteString(formatExampleNodes(d, indent + 1, false))
+				innerNodes.WriteString("\n")
+				return nil
+			}
+
+			return d.Skip()
+		})
+
+		if innerNodes.Len() > 0 {
+			exampleNodes.WriteString(fmt.Sprintf("\n%s%s", innerIndent, innerNodes.String()))
+			exampleNodes.WriteString(baseIndent)
+		}
+
+		exampleNodes.WriteString("]")
+	case jx.String:
+		val, _ := d.Str()
+		exampleNodes.WriteString(fmt.Sprintf("%q", val))
+	case jx.Number:
+		num, _ := d.Num()
+
+		if num.IsInt() {
+			val, _ := num.Int64()
+			exampleNodes.WriteString(fmt.Sprintf("%d", int64(val)))
+		} else {
+			val, _ := num.Float64()
+			exampleNodes.WriteString(fmt.Sprintf("%g", val))
+		}
+	case jx.Bool:
+		val, _ := d.Bool()
+		exampleNodes.WriteString(fmt.Sprintf("%t", val))
+	case jx.Null:
+		_ = d.Null()
+		exampleNodes.WriteString("null")
+	default:
+		val, _ := d.Raw()
+		exampleNodes.WriteString(fmt.Sprintf("%v", val))
+	}
+
+	return exampleNodes.String()
 }
